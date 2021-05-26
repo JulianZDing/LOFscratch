@@ -79,13 +79,22 @@ class TemporalOutlierFactor:
         return np.stack(embedded_data, axis=1)
 
 
-    def fit(self, data):
+    def fit(self, data, times=None):
         '''
         Populate internal parameters based on input time series
 
         :param numpy.ndarray data: 1D time series to be processed
                                    (will be reshaped to (-1,) if multi-dimensional)
         '''
+        if times is not None and data.shape[0] != times.shape[0]:
+            raise ValueError(
+                f'Expected times {times.shape} to have the same number of entries as data {data.shape}')
+        
         data = data.reshape(-1)
         self.kNN.fit(self._time_delay_embed(data))
         self._set_tof(self.kNN.kneighbors(return_distance=False))
+
+        if times is None:
+            return data
+        
+        return data[:self.tofs_.size], times[:self.tofs_.size]
