@@ -5,7 +5,7 @@ class TemporalOutlierFactor:
     def __init__(
         self, dims=3, delay=1, q=2,
         n_neighbors=None, dist_metric='minkowski', p=2, metric_params=None,
-        event_length=80
+        event_length=80, wrap=True
     ):
         '''
         Detects unique events ("unicorns") in one-dimensional time series data
@@ -18,6 +18,7 @@ class TemporalOutlierFactor:
         :param int p: Minkowski degree to pass to sklearn.neighbors.NearestNeighbors
         :param dict metric_params: Additional args to pass to sklearn.neighbors.NearestNeighbors
         :param int event_length: Maximum detectable event length (samples); sets TOF detection threshold
+        :param bool wrap: Whether or not to wrap data to preserve number of samples (default: true)
         '''
         self.dims = dims
         self.delay = delay
@@ -26,6 +27,7 @@ class TemporalOutlierFactor:
         self.kNN = NearestNeighbors(
             n_neighbors=self.n_neighbors, metric=dist_metric, p=p, metric_params=metric_params)
         self._set_threshold(event_length)
+        self.wrap = wrap
     
 
     def _set_threshold(self, event_length):
@@ -69,13 +71,14 @@ class TemporalOutlierFactor:
         :return: (n_samples, dims) array of resulting phase space
         :rtype: numpy.ndarray
         '''
-        embedded_data = []
-        for i in range(self.dims):
-            if i+1 == self.dims:
-                offset_data = data[i:]
-            else:
-                offset_data = data[i:(i+1-self.dims)]
-            embedded_data.append(offset_data)
+        overflow = self.delay*(self.dims-1)
+        if self.wrap:
+            data_length = data.size
+            extension = data[0:overflow]
+            data = np.append(data, extension)
+        else:
+            data_length = data.size - overflow
+        embedded_data = [data[(i*self.delay):(i*self.delay + data_length)] for i in range(self.dims)]
         return np.stack(embedded_data, axis=1)
 
 
