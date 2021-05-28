@@ -1,7 +1,9 @@
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
-class TemporalOutlierFactor:
+from ts_outlier_detection.time_series_outlier import TimeSeriesOutlier
+
+class TemporalOutlierFactor(TimeSeriesOutlier):
     def __init__(
         self, dims=3, delay=1, q=2,
         n_neighbors=None, dist_metric='minkowski', p=2, metric_params=None,
@@ -10,15 +12,15 @@ class TemporalOutlierFactor:
         '''
         Detects unique events ("unicorns") in one-dimensional time series data
 
-        :param int dims: Embedding dimension
-        :param int delay: Number of indices in the data to offset for time delay
-        :param int q: Exponent degree to use in TOF calculation
-        :param int n_neighbors: Number of nearest neighbors to consider (default: dims+1)
-        :param str dist_metric: Distance metric to pass to sklearn.neighbors.NearestNeighbors
-        :param int p: Minkowski degree to pass to sklearn.neighbors.NearestNeighbors
-        :param dict metric_params: Additional args to pass to sklearn.neighbors.NearestNeighbors
-        :param int event_length: Maximum detectable event length (samples); sets TOF detection threshold
-        :param bool wrap: Whether or not to wrap data to preserve number of samples (default: true)
+        :param int dims:            (Optional) Embedding dimension (default 3)
+        :param int delay:           (Optional) Number of indices in the data to offset for time delay (default 1)
+        :param int q:               (Optional) Exponent degree to use in TOF calculation (default 2)
+        :param int n_neighbors:     (Optional) Number of nearest neighbors to consider (default dims+1)
+        :param str dist_metric:     (Optional) Distance metric to pass to sklearn.neighbors.NearestNeighbors (default minkowski)
+        :param int p:               (Optional) Minkowski degree to pass to sklearn.neighbors.NearestNeighbors (default 2)
+        :param dict metric_params:  (Optional) Additional args to pass to sklearn.neighbors.NearestNeighbors
+        :param int event_length:    (Optional) Maximum detectable event length (samples); sets TOF detection threshold (default 80)
+        :param bool wrap:           (Optional) Whether or not to wrap data to preserve number of samples (default true)
         '''
         self.dims = dims
         self.delay = delay
@@ -68,7 +70,8 @@ class TemporalOutlierFactor:
         Generate an array representing the phase space of the time-embedded time series
 
         :param numpy.ndarray data: 1D time series to be embedded
-        :return: (n_samples, dims) array of resulting phase space
+        :return: array of resulting phase space with shape (n_samples, dims)
+                (n_samples will be truncated by delay*(dims-1) if wrap=False)
         :rtype: numpy.ndarray
         '''
         overflow = self.delay*(self.dims-1)
@@ -88,16 +91,25 @@ class TemporalOutlierFactor:
 
         :param numpy.ndarray data: 1D time series to be processed
                                    (will be reshaped to (-1,) if multi-dimensional)
+        :param numpy.ndarray times: (Optional) Corresponding time labels (must have same first dimension as data)
+        :return: time series and corresponding time labels (if provided); truncated if wrap=False
+        :rtype: numpy.ndarray
         '''
         if times is not None and data.shape[0] != times.shape[0]:
             raise ValueError(
                 f'Expected times {times.shape} to have the same number of entries as data {data.shape}')
         
         data = data.reshape(-1)
-        self.kNN.fit(self._time_delay_embed(data))
+        embedded_data = self._time_delay_embed(data)
+        self.kNN.fit(embedded_data)
         self._set_tof(self.kNN.kneighbors(return_distance=False))
+        super()._set_embedded_data(embedded_data)
+        super()._set_truncated_data(data, times, self.tofs_.size)
 
-        if times is None:
-            return data
-        
-        return data[:self.tofs_.size], times[:self.tofs_.size]
+
+    def get_outlier_indices(self):
+        return self.tof_detections_
+
+    
+    def get_outlier_factors(self):
+        return self.tofs_
