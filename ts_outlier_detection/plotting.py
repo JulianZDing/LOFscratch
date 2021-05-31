@@ -44,15 +44,21 @@ def plot_2d_phase_space(
     :param numpy.ndarray outlier_ids:   (Optional) Data indices corresponding to outliers
     :param dict plot_style:             (Optional) Custom keyword arguments to pass to plt.plot
     :param dict scatter_style:          (Optional) Custom keyword arguments to pass to plt.scatter
+
+    :return: list of PathCollections of plotted scatter plots
+    :rtype: [matplotlib.collections.PathCollection]
     '''
     scatter_data = reduce_dimensions(data)
-    ax.plot(scatter_data[:,0], scatter_data[:,1], **plot_style, zorder=1)
+    plots = [ax.plot(scatter_data[:,0], scatter_data[:,1], **plot_style, zorder=1)[0]]
     if outlier_ids is not None:
-        ax.scatter(
-            scatter_data[outlier_ids][:,0],
-            scatter_data[outlier_ids][:,1],
-            **scatter_style, zorder=2
+        plots.append(
+            ax.scatter(
+                scatter_data[outlier_ids][:,0],
+                scatter_data[outlier_ids][:,1],
+                **scatter_style, zorder=2
+            )
         )
+    return plots
 
 
 def plot_2d_scatter(
@@ -68,15 +74,21 @@ def plot_2d_scatter(
     :param numpy.ndarray outlier_ids:   (Optional) Data indices corresponding to outliers
     :param dict scatter_style:             (Optional) Custom keyword arguments to pass to plt.plot
     :param dict outlier_style:          (Optional) Custom keyword arguments to pass to plt.scatter
+
+    :return: list of PathCollections of plotted scatter plots
+    :rtype: [matplotlib.collections.PathCollection]
     '''
     scatter_data = reduce_dimensions(data)
-    ax.scatter(scatter_data[:,0], scatter_data[:,1], **scatter_style)
+    plots = [ax.scatter(scatter_data[:,0], scatter_data[:,1], **scatter_style)]
     if outlier_ids is not None:
-        ax.scatter(
-            scatter_data[outlier_ids][:,0],
-            scatter_data[outlier_ids][:,1],
-            **outlier_style
+        plots.append(
+            ax.scatter(
+                scatter_data[outlier_ids][:,0],
+                scatter_data[outlier_ids][:,1],
+                **outlier_style
+            )
         )
+    return plots
 
 
 def plot_ts_outliers(
@@ -92,14 +104,25 @@ def plot_ts_outliers(
     :param bool detections:     (Optional) Whether or not to scatter plot detected outliers (default True)
     :param dict plot_style:     (Optional) Custom keyword arguments to pass to plt.plot
     :param dict scatter_style:  (Optional) Custom keyword arguments to pass to plt.scatter
+
+
+    :return: list of Line2D and PathCollections of plotted line and scatter plots
+    :rtype: [matplotlib.collections.PathCollection]
     '''
     data, times = ts_outlier.get_truncated_data()
     scores = ts_outlier.get_outlier_factors()
 
-    axs[0].plot(times, data, **plot_style, zorder=1)
-    axs[1].plot(times, scores, **plot_style, zorder=1)
+    plots = [
+        axs[0].plot(times, data, **plot_style, zorder=1)[0],
+        axs[1].plot(times, scores, **plot_style, zorder=1)[0]
+    ]
     
     if detections:
         outliers = ts_outlier.get_outlier_indices()
-        axs[0].scatter(times[outliers], data[outliers], **scatter_style, zorder=2)
-        axs[1].scatter(times[outliers], scores[outliers], **scatter_style, zorder=2)
+        scatters = [
+            axs[0].scatter(times[outliers], data[outliers], **scatter_style, zorder=2),
+            axs[1].scatter(times[outliers], scores[outliers], **scatter_style, zorder=2)
+        ]
+        plots.extend(scatters)
+    
+    return plots
