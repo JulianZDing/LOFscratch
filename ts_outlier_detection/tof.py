@@ -75,7 +75,7 @@ class TemporalOutlierFactor(TimeSeriesOutlier):
         self._time_delay_embed(data)
         self.kNN.fit(self.get_embedded_data())
         self._set_tof(self.kNN.kneighbors(return_distance=False))
-        super()._set_truncated_data(data, times, self.tofs_.size)
+        self._set_truncated_data(data, times, self.tofs_.size)
 
 
     def get_outlier_indices(self):

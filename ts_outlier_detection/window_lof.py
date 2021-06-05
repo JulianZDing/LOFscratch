@@ -14,8 +14,8 @@ class WindowedLocalOutlierFactor(TimeSeriesOutlier):
         Detects temporal outliers in one-dimensional time series data
         using a sliding window spatial embedding scheme and Local Outlier Factor
 
+        :param float crit_lof:      (Optional) Any point with an LOF above this will be considered outlying (default 1.0)
         :param float crit_sigma:    (Optional) Alternative to specifying crit_lof; number of sigmas from mean to consider a point outlying (overrides crit_lof)
-        :param bool wrap:           (Optional) Whether or not to wrap data to preserve number of samples (default: true)
 
         Remaining parameters are passed to sklearn.neighbors.LocalOutlierFactor
         '''
@@ -41,14 +41,14 @@ class WindowedLocalOutlierFactor(TimeSeriesOutlier):
         self._time_delay_embed(data)
         self.clf.fit(self.get_embedded_data())
         self.lofs_ = -self.clf.negative_outlier_factor_
-        super()._set_truncated_data(data, times, self.lofs_.size)
+        self._set_truncated_data(data, times, self.lofs_.size)
 
 
     def get_outlier_indices(self):
         if self.crit_sigma is not None:
             mean_lof = np.mean(self.lofs_)
             lof_std = np.std(self.lofs_)
-            self.crit_lof  = self.crit_sigma*lof_std + mean_lof
+            self.crit_lof  = self.crit_sigma * lof_std + mean_lof
         return np.where(self.lofs_ > self.crit_lof)[0]
 
     

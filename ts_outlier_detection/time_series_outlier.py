@@ -60,8 +60,12 @@ class TimeSeriesOutlier:
                 data = np.append(data, data[0:end_padding])
         else:
             data_length -= (width-1)
-        frames = [data[(i*self.delay):(i*self.delay + data_length):self.delay] for i in range(self.dims)]
+        frames = [data[(i*self.delay):(i*self.delay + data_length)] for i in range(self.dims)]
         self.embedded_data = np.stack(frames, axis=-1)
+
+    
+    def _set_embedded_data(self, data):
+        self.embedded_data = data
 
 
     def _set_truncated_data(self, data, times, length):

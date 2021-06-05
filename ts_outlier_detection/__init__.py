@@ -1,2 +1,3 @@
-from .tof import TemporalOutlierFactor
-from .window_lof import WindowedLocalOutlierFactor
+from .tof import *
+from .window_lof import *
+from .spatial_lof import *
