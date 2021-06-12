@@ -42,6 +42,7 @@ class TemporalOutlierFactor(TimeSeriesOutlier):
         :param numpy.ndarray neighbor_indices: (n_samples, n_neighbors) array of n_neighbors nearest neighbors
                                                to each point in time-embedded phase space
         '''
+        self.neighbor_indices_ = neighbor_indices
         indices = np.stack([np.arange(0, neighbor_indices.shape[0]) for _ in range(self.n_neighbors)], axis=-1)
         self.tofs_ = np.power(
             np.sum(

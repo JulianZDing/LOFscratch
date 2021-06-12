@@ -38,7 +38,7 @@ class TimeSeriesOutlier:
         :param float offset:        (Optional) Relative position within window to map sample to embedded coordinate (default 0)
         :param bool wrap:           (Optional) Whether or not to wrap data to preserve number of samples (default true)
         
-        (Additional parameters will be saved in self.kwargs)
+        (Additional parameters will be saved in self.unused_kwargs)
         '''
         self.unused_kwargs = set_arg_defaults(self, ARG_DEFAULTS, kwargs)
 
