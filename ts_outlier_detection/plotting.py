@@ -1,12 +1,14 @@
 import numpy as np
 
+from copy import deepcopy
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
 # Default formatting
 DEF_PLOT_STYLE = {'color': 'c', 'linewidth': 1}
-DEF_SCAT_STYLE = {'facecolors': 'k', 'marker': '.'}
+DEF_SCAT_STYLE = {'s': 2, 'facecolors': 'k', 'marker': '.'}
 DEF_POINT_STYLE = {'alpha': 0.3, 's': 5, 'facecolors': 'k', 'edgecolors': 'none'}
+DEF_VLINE_STYLE = {'colors': 'r', 'linewidth': 1}
 
 
 def _check_time_data_agreement(data, times):
@@ -107,7 +109,6 @@ def plot_ts_outliers(
     :param dict plot_style:     (Optional) Custom keyword arguments to pass to plt.plot
     :param dict scatter_style:  (Optional) Custom keyword arguments to pass to plt.scatter
 
-
     :return: list of Line2D and PathCollections of plotted line and scatter plots
     :rtype: [matplotlib.collections.PathCollection]
     '''
@@ -132,7 +133,8 @@ def plot_ts_outliers(
 def plot_nearest_neighbors(
     ts_outlier, axs,
     plot_style=DEF_PLOT_STYLE,
-    scatter_style=DEF_SCAT_STYLE
+    scatter_style=DEF_SCAT_STYLE,
+    vline_style=DEF_VLINE_STYLE
 ):
     '''
     Plot nearest neighbors of each point in time series
@@ -141,6 +143,7 @@ def plot_nearest_neighbors(
     :param (matplotlib.axes.Axes, matplotlib.axes.Axes) axs: Array of three axes to plot onto
     :param dict plot_style:     (Optional) Custom keyword arguments to pass to plt.plot
     :param dict scatter_style:  (Optional) Custom keyword arguments to pass to plt.scatter
+    :param dict vline_style:    (Optional) Custom keyword arguments to pass to plt.vlines
 
     :return: list of Line2D and PathCollections of plotted line and scatter plots
     :rtype: [matplotlib.collections.PathCollection]
@@ -148,9 +151,19 @@ def plot_nearest_neighbors(
     data, times = ts_outlier.get_truncated_data()
     matrix_y = ts_outlier.neighbor_indices_.flatten()
     matrix_x = np.tile(np.arange(data.size).reshape(-1, 1), (1, ts_outlier.n_neighbors)).flatten()
+
+    vline_style = deepcopy(vline_style)
+    vline_style['zorder'] = 1
+    scatter_style = deepcopy(scatter_style)
+    scatter_style['zorder'] = 2
+    plot_style = deepcopy(plot_style)
+    plot_style['zorder'] = 4
+    plot_style['alpha'] = 0.5
     plots = [
+        axs[0].vlines(times[ts_outlier.get_outlier_indices()], 0, times[-1], **vline_style),
         axs[0].scatter(matrix_x, matrix_y, **scatter_style),
+        axs[0].plot([0, times[-1]], [0, times[-1]], 'b-', zorder=3)[0],
         axs[1].plot(times, data, **plot_style)[0],
-        axs[2].plot(data, times, **plot_style)[0]
+        axs[2].plot(data, times, **plot_style)[0],
     ]
     return plots

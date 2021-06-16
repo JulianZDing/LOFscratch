@@ -4,19 +4,19 @@ from sklearn.neighbors import LocalOutlierFactor
 from ts_outlier_detection.time_series_outlier import TimeSeriesOutlier
 
 class WindowedLocalOutlierFactor(TimeSeriesOutlier):
-    def __init__(self, k=20, crit_lof=1.0, crit_sigma=None, **kwargs):
+    def __init__(self, n_neighbors=20, crit_lof=1.0, crit_sigma=None, **kwargs):
         '''
         Detects temporal outliers in one-dimensional time series data
         using a sliding window spatial embedding scheme and Local Outlier Factor
 
-        :param int k:            (Optional) Number of nearest neighbors to consider in outlier factor calculation (default 20)
+        :param int n_neighbors:  (Optional) Number of nearest neighbors to consider in outlier factor calculation (default 20)
         :param float crit_lof:   (Optional) Any point with an LOF above this will be considered outlying (default 1.0)
         :param float crit_sigma: (Optional) Alternative to specifying crit_lof; number of sigmas from mean to consider a point outlying (overrides crit_lof)
 
         Remaining parameters are passed to sklearn.neighbors.LocalOutlierFactor
         '''
         super().__init__(**kwargs)
-        self.clf = LocalOutlierFactor(n_neighbors=k, **self.unused_kwargs)
+        self.clf = LocalOutlierFactor(n_neighbors=n_neighbors, **self.unused_kwargs)
         self.crit_lof = crit_lof
         self.crit_sigma = crit_sigma
 
