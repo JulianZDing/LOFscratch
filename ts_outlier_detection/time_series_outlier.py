@@ -1,35 +1,8 @@
 import numpy as np
 
-ARG_DEFAULTS = {
-    'dims': (3, False),
-    'delay': (1, False),
-    'offset': (0.0, False),
-    'wrap': (True, False),
-    'n_neighbors': (20, True)
-}
-
-
-def set_arg_defaults(obj, defaults, kwargs={}, delete=True):
-    '''
-    Function for setting an object's attributes using keyword arguments
-
-    :param object obj: Target object
-    :param dict defaults: Dictionary {key: (default value, share?)}
-                          If share is False, key will be deleted from kwargs if present
-    :param dict kwargs: (Optional) Dictionary containing override values
-    '''
-    for key, (val, share) in defaults.items():
-        setattr(obj, key, kwargs.get(key, val))
-        if not share:
-            try:
-                del kwargs[key]
-            except KeyError:
-                pass
-    return kwargs
-
 
 class TimeSeriesOutlier:
-    def __init__(self, **kwargs):
+    def __init__(self, dims=3, delay=1, offset=0.0, wrap=True, **kwargs):
         '''
         Superclass providing standard access methods for LOF and TOF
 
@@ -37,10 +10,12 @@ class TimeSeriesOutlier:
         :param int delay:           (Optional) Number of indices in the data to offset for time delay (default 1)
         :param float offset:        (Optional) Relative position within window to map sample to embedded coordinate (default 0)
         :param bool wrap:           (Optional) Whether or not to wrap data to preserve number of samples (default true)
-        
-        (Additional parameters will be saved in self.unused_kwargs)
         '''
-        self.unused_kwargs = set_arg_defaults(self, ARG_DEFAULTS, kwargs)
+        self.dims = dims
+        self.delay = delay
+        self.offset = offset
+        self.wrap = wrap
+        self.unused_kwargs = kwargs
 
     
     def _time_delay_embed(self, data):
@@ -60,8 +35,11 @@ class TimeSeriesOutlier:
                 data = np.append(data, data[0:end_padding])
         else:
             data_length -= (width-1)
-        frames = [data[(i*self.delay):(i*self.delay + data_length)] for i in range(self.dims)]
-        self.embedded_data = np.stack(frames, axis=-1)
+        
+        indexer_row = np.arange(0, width, self.delay)
+        indexer_col = np.arange(data_length).reshape(-1, 1)
+        indexer = np.tile(indexer_row, (data_length, 1)) + np.tile(indexer_col, (1, self.dims))
+        self.embedded_data = data[indexer]
 
     
     def _set_embedded_data(self, data):
@@ -108,6 +86,13 @@ class TimeSeriesOutlier:
         Get a list of all the labelled outlier factors for the fitted time series
 
         :return: array of floats
+        :rtype: numpy.ndarray
+        '''
+        pass
+
+    def get_neighbor_indices(self):
+        '''
+        :return: (samples, n_neighbors) matrix of the n_neighbors nearest neighbors of each sample
         :rtype: numpy.ndarray
         '''
         pass

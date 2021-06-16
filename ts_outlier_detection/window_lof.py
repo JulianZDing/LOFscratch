@@ -1,27 +1,24 @@
 import numpy as np
 from sklearn.neighbors import LocalOutlierFactor
 
-from ts_outlier_detection.time_series_outlier import set_arg_defaults, TimeSeriesOutlier
-
-ARG_DEFAULTS = {
-    'crit_lof': (1.0, False),
-    'crit_sigma': (None, False),
-}
+from ts_outlier_detection.time_series_outlier import TimeSeriesOutlier
 
 class WindowedLocalOutlierFactor(TimeSeriesOutlier):
-    def __init__(self, **kwargs):
+    def __init__(self, k=20, crit_lof=1.0, crit_sigma=None, **kwargs):
         '''
         Detects temporal outliers in one-dimensional time series data
         using a sliding window spatial embedding scheme and Local Outlier Factor
 
-        :param float crit_lof:      (Optional) Any point with an LOF above this will be considered outlying (default 1.0)
-        :param float crit_sigma:    (Optional) Alternative to specifying crit_lof; number of sigmas from mean to consider a point outlying (overrides crit_lof)
+        :param int k:            (Optional) Number of nearest neighbors to consider in outlier factor calculation (default 20)
+        :param float crit_lof:   (Optional) Any point with an LOF above this will be considered outlying (default 1.0)
+        :param float crit_sigma: (Optional) Alternative to specifying crit_lof; number of sigmas from mean to consider a point outlying (overrides crit_lof)
 
         Remaining parameters are passed to sklearn.neighbors.LocalOutlierFactor
         '''
-        kwargs = set_arg_defaults(self, ARG_DEFAULTS, kwargs)
         super().__init__(**kwargs)
-        self.clf = LocalOutlierFactor(**self.unused_kwargs)
+        self.clf = LocalOutlierFactor(n_neighbors=k, **self.unused_kwargs)
+        self.crit_lof = crit_lof
+        self.crit_sigma = crit_sigma
 
 
     def fit(self, data, times=None):
@@ -37,7 +34,7 @@ class WindowedLocalOutlierFactor(TimeSeriesOutlier):
         if times is not None and data.shape[0] != times.shape[0]:
             raise ValueError(
                 f'Expected times {times.shape} to have the same number of entries as data {data.shape}')
-        data = data.reshape(-1)
+        data = data.flatten()
         self._time_delay_embed(data)
         self.clf.fit(self.get_embedded_data())
         self.lofs_ = -self.clf.negative_outlier_factor_
@@ -54,3 +51,7 @@ class WindowedLocalOutlierFactor(TimeSeriesOutlier):
     
     def get_outlier_factors(self):
         return self.lofs_
+    
+
+    def get_neighbor_indices(self):
+        return self.clf.kneighbors(return_distance=False)

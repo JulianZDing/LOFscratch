@@ -1,27 +1,25 @@
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
-from ts_outlier_detection.time_series_outlier import set_arg_defaults, TimeSeriesOutlier
-
-ARG_DEFAULTS = {
-    'event_length': (80, False),
-    'q': (2, False),
-}
+from ts_outlier_detection.time_series_outlier import TimeSeriesOutlier
 
 class TemporalOutlierFactor(TimeSeriesOutlier):
-    def __init__(self, **kwargs):
+    def __init__(self, k=20, event_length=80, q=2, **kwargs):
         '''
         Detects unique events ("unicorns") in one-dimensional time series data
 
+        :param int k:            (Optional) Number of nearest neighbors to consider in outlier factor calculation (default 20)
         :param int event_length: (Optional) Maximum detectable event length (samples); sets TOF detection threshold (default 80)
         :param int q:            (Optional) Exponent degree to use in TOF calculation (default 2)
 
         Remaining parameters are passed to sklearn.neighbors.NearestNeighbors
         '''
-        kwargs = set_arg_defaults(self, ARG_DEFAULTS, kwargs)
         super().__init__(**kwargs)
-        self.kNN = NearestNeighbors(**self.unused_kwargs)
-        self._set_threshold(self.event_length)
+        self.kNN = NearestNeighbors(n_neighbors=k, **self.unused_kwargs)
+        self.n_neighbors = k
+        self._set_threshold(event_length)
+        self.event_length = event_length
+        self.q = q
     
 
     def _set_threshold(self, event_length):
@@ -43,7 +41,7 @@ class TemporalOutlierFactor(TimeSeriesOutlier):
                                                to each point in time-embedded phase space
         '''
         self.neighbor_indices_ = neighbor_indices
-        indices = np.stack([np.arange(0, neighbor_indices.shape[0]) for _ in range(self.n_neighbors)], axis=-1)
+        indices = np.tile(np.arange(0, neighbor_indices.shape[0]).reshape(-1, 1), (1, neighbor_indices.shape[1]))
         self.tofs_ = np.power(
             np.sum(
                 np.power(
@@ -72,7 +70,7 @@ class TemporalOutlierFactor(TimeSeriesOutlier):
             raise ValueError(
                 f'Expected times {times.shape} to have the same number of entries as data {data.shape}')
         
-        data = data.reshape(-1)
+        data = data.flatten()
         self._time_delay_embed(data)
         self.kNN.fit(self.get_embedded_data())
         self._set_tof(self.kNN.kneighbors(return_distance=False))
@@ -85,3 +83,7 @@ class TemporalOutlierFactor(TimeSeriesOutlier):
     
     def get_outlier_factors(self):
         return self.tofs_
+
+    
+    def get_neighbor_indices(self):
+        return self.neighbor_indices_

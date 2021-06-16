@@ -1,9 +1,11 @@
+import numpy as np
+
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
 # Default formatting
 DEF_PLOT_STYLE = {'color': 'c', 'linewidth': 1}
-DEF_SCAT_STYLE = {'facecolors': 'k', 'marker': '+'}
+DEF_SCAT_STYLE = {'facecolors': 'k', 'marker': '.'}
 DEF_POINT_STYLE = {'alpha': 0.3, 's': 5, 'facecolors': 'k', 'edgecolors': 'none'}
 
 
@@ -72,8 +74,8 @@ def plot_2d_scatter(
     :param numpy.ndarray data: Input data of shape (n_samples, n_dimensions)
     :param matplotlib.axes.Axes ax: Axes object to plot onto
     :param numpy.ndarray outlier_ids:   (Optional) Data indices corresponding to outliers
-    :param dict scatter_style:             (Optional) Custom keyword arguments to pass to plt.plot
-    :param dict outlier_style:          (Optional) Custom keyword arguments to pass to plt.scatter
+    :param dict scatter_style:          (Optional) Custom keyword arguments to pass to plt.scatter
+    :param dict outlier_style:          (Optional) Custom keyword arguments to pass to plt.scatter at outlying points
 
     :return: list of PathCollections of plotted scatter plots
     :rtype: [matplotlib.collections.PathCollection]
@@ -125,4 +127,30 @@ def plot_ts_outliers(
         ]
         plots.extend(scatters)
     
+    return plots
+
+def plot_nearest_neighbors(
+    ts_outlier, axs,
+    plot_style=DEF_PLOT_STYLE,
+    scatter_style=DEF_SCAT_STYLE
+):
+    '''
+    Plot nearest neighbors of each point in time series
+
+    :param TimeSeriesOutlier ts_outlier: Model to plot
+    :param (matplotlib.axes.Axes, matplotlib.axes.Axes) axs: Array of three axes to plot onto
+    :param dict plot_style:     (Optional) Custom keyword arguments to pass to plt.plot
+    :param dict scatter_style:  (Optional) Custom keyword arguments to pass to plt.scatter
+
+    :return: list of Line2D and PathCollections of plotted line and scatter plots
+    :rtype: [matplotlib.collections.PathCollection]
+    '''
+    data, times = ts_outlier.get_truncated_data()
+    matrix_y = ts_outlier.neighbor_indices_.flatten()
+    matrix_x = np.tile(np.arange(data.size).reshape(-1, 1), (1, ts_outlier.n_neighbors)).flatten()
+    plots = [
+        axs[0].scatter(matrix_x, matrix_y, **scatter_style),
+        axs[1].plot(times, data, **plot_style)[0],
+        axs[2].plot(data, times, **plot_style)[0]
+    ]
     return plots
