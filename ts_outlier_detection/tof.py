@@ -4,17 +4,18 @@ from sklearn.neighbors import NearestNeighbors
 from ts_outlier_detection.time_series_outlier import TimeSeriesOutlier
 
 class TemporalOutlierFactor(TimeSeriesOutlier):
-    def __init__(self, n_neighbors=20, event_length=80, q=2, **kwargs):
+    def __init__(self, n_neighbors=None, event_length=80, q=2, **kwargs):
         '''
         Detects unique events ("unicorns") in one-dimensional time series data
 
-        :param int n_neighbors:  (Optional) Number of nearest neighbors to consider in outlier factor calculation (default 20)
+        :param int n_neighbors:  (Optional) Number of nearest neighbors to consider in outlier factor calculation (default dims+1)
         :param int event_length: (Optional) Maximum detectable event length (samples); sets TOF detection threshold (default 80)
         :param int q:            (Optional) Exponent degree to use in TOF calculation (default 2)
 
         Remaining parameters are passed to sklearn.neighbors.NearestNeighbors
         '''
         super().__init__(**kwargs)
+        n_neighbors = self.dims+1 if n_neighbors is None else n_neighbors
         self.kNN = NearestNeighbors(n_neighbors=n_neighbors, **self.unused_kwargs)
         self.n_neighbors = n_neighbors
         self._set_threshold(event_length)
