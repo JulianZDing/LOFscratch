@@ -30,7 +30,7 @@ def get_raw_event(detector, gps_time, length, offset, edges):
     bracket = edges + length/2
     t0 = gps_time - bracket + offset
     t1 = gps_time + bracket + offset
-    return TimeSeries.fetch_open_data(detector, t0, t1, cache=True)
+    return TimeSeries.fetch_open_data(detector, t0, t1, cache=False)
     
 
 def preprocess_timeseries(ts, bp=[BANDPASS]):
