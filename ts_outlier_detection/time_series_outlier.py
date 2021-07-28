@@ -25,7 +25,7 @@ class TimeSeriesOutlier:
         :param numpy.ndarray data: 1D time series to be embedded
         '''
         width = int(self.dims*self.delay)
-        data_length = data.size
+        data_length = data.shape[0]
         if self.wrap:
             offset_idx = int(self.offset*width)
             end_padding = width - offset_idx - 1

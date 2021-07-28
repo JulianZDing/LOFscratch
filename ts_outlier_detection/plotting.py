@@ -1,8 +1,12 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 from copy import deepcopy
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
+
+from ts_outlier_detection import *
+from utils import BANDPASS
 
 # Default formatting
 DEF_PLOT_STYLE = {'color': 'c', 'linewidth': 1}
@@ -130,6 +134,7 @@ def plot_ts_outliers(
     
     return plots
 
+
 def plot_nearest_neighbors(
     ts_outlier, axs,
     plot_style=DEF_PLOT_STYLE,
@@ -167,3 +172,131 @@ def plot_nearest_neighbors(
         axs[2].plot(data, times, **plot_style)[0],
     ]
     return plots
+
+
+def plot_qscan(ax, ts, q_kwargs={}, **kwargs):
+    image = ax.pcolormesh(ts.q_transform(**q_kwargs), **kwargs)
+    cbar = ax.colorbar()
+    cbar.set_label('Normalized energy')
+    return image
+
+
+def plot_high_resolution_qscan(ax, rdata, windows, q_kwargs={}, **kwargs):
+    qsan_segments = [rdata.q_transform(outseg=(left, right), **q_kwargs) for left, right in windows]
+    qscan = np.concatenate(qsan_segments, axis=0)
+    ax.imshow(qscan, **kwargs)
+    cbar = ax.colorbar()
+    cbar.set_label('Normalized energy')
+
+
+def plot_detections(ax, detections, ypos, **kwargs):
+    markers, = ax.plot(detections, np.full(detections.shape, ypos), 'k.', **kwargs)
+    return markers
+
+
+def plot_omegascan_detections(ax, ts, detections, q_kwargs={}, ypos=BANDPASS[0]-10, vmin=0, vmax=15):
+    image = plot_qscan(ax, ts, q_kwargs=q_kwargs, vmin=vmin, vmax=vmax, zorder=1)
+    markers = plot_detections(ax, detections, ypos=ypos, zorder=2)
+    ax.set_ylim(0, 300)
+    return [image, markers]
+
+
+def plot_outlier_comparison(hdata, rdata, title=None, fontsize=None, tso=TemporalOutlierFactor, **kwargs):
+    fig = plt.figure(figsize=(18, 6), constrained_layout=True)
+    gs = fig.add_gridspec(2, 2)
+    bax = fig.add_subplot(gs[1,0])
+    bax.set_ylabel(tso.__name__, fontsize=fontsize)
+    bax.set_xlabel('GPS Time (s)', fontsize=fontsize)
+    tax = fig.add_subplot(gs[0,0], sharex=bax)
+    tax.set_ylabel('Strain', fontsize=fontsize)
+    if title is not None:
+        tax.set_title(title, fontsize=fontsize)
+    oax = fig.add_subplot(gs[:,1])
+    oax.set_ylabel('Frequency (Hz)', fontsize=fontsize)
+    oax.set_xlabel('GPS Time (s)', fontsize=fontsize)
+
+    ctof = tso(**kwargs)
+    data = hdata.value
+    times = hdata.times.value
+    ctof.fit(data, times)
+    plot_ts_outliers(ctof, (tax, bax))
+    plot_omegascan_detections(
+        oax, rdata, hdata.times.value[ctof.get_outlier_indices()],
+        outseg=(hdata.times.value[0], hdata.times.value[-1])
+    )
+
+
+def plot_outlier_comparison_vertical(hdata, rdata, title=None, fontsize=None, tso=TemporalOutlierFactor, **kwargs):
+    fig = plt.figure(figsize=(9, 9), constrained_layout=True)
+    gs = fig.add_gridspec(3, 1)
+    tax = fig.add_subplot(gs[2])
+    tax.set_ylabel(tso.__name__, fontsize=fontsize)
+    tax.set_xlabel('GPS Time (s)', fontsize=fontsize)
+    oax = fig.add_subplot(gs[0:2], sharex=tax)
+    oax.set_ylabel('Frequency (Hz)', fontsize=fontsize)
+    if title is not None:
+        oax.set_title(title, fontsize=fontsize)
+    
+    dummyfig, dummyax = plt.subplots(1,1)
+    ctof = tso(**kwargs)
+    data = hdata.value
+    times = hdata.times.value
+    ctof.fit(data, times)
+    plot_ts_outliers(ctof, (dummyax, tax))
+    plt.close(dummyfig)
+    plot_omegascan_detections(
+        oax, rdata, hdata.times.value[ctof.get_outlier_indices()],
+        outseg=(hdata.times.value[0], hdata.times.value[-1])
+    )
+
+
+def plot_omega_phase(hdata, rdata, title=None, fontsize=None, tso=TemporalOutlierFactor, **kwargs):
+    fig, axs = plt.subplots(1, 2, figsize=(18, 7))
+    oax, pax = axs
+    oax.set_ylabel('Frequency (Hz)', fontsize=fontsize)
+    oax.set_xlabel('GPS Time (s)', fontsize=fontsize)
+    if title is not None:
+        oax.set_title(title, fontsize=fontsize)
+    pax.set_xlabel('$x(t)$', fontsize=fontsize)
+    pax.set_ylabel('$x(t+𝜏)$', fontsize=fontsize)
+    pax.set_title('Time-embedded phase space', fontsize=fontsize)
+
+    ctof = tso(**kwargs)
+    data = hdata.value
+    times = hdata.times.value
+    ctof.fit(data, times)
+    
+    plot_omegascan_detections(
+        oax, rdata, hdata.times.value[ctof.get_outlier_indices()],
+        outseg=(hdata.times.value[0], hdata.times.value[-1])
+    )
+    plot_2d_phase_space(
+        ctof.get_embedded_data(), pax, outlier_ids=ctof.get_outlier_indices())
+    fig.subplots_adjust(hspace=0.5)
+
+
+def plot_outlier_phase(hdata, title=None, fontsize=None, tso=TemporalOutlierFactor, **kwargs):
+    fig = plt.figure(figsize=(18, 8), constrained_layout=True)
+    gs = fig.add_gridspec(2, 2)
+    bax = fig.add_subplot(gs[1,0])
+    bax.set_ylabel(tso.__name__, fontsize=fontsize)
+    bax.set_xlabel('GPS Time (s)', fontsize=fontsize)
+    tax = fig.add_subplot(gs[0,0], sharex=bax)
+    tax.set_ylabel('Strain', fontsize=fontsize)
+    if title is not None:
+        tax.set_title(title, fontsize=fontsize)
+    pax = fig.add_subplot(gs[:,1])
+    pax.set_xlabel('$x(t)$', fontsize=fontsize)
+    pax.set_ylabel('$x(t+𝜏)$', fontsize=fontsize)
+    pax.set_title('Time-embedded phase space', fontsize=fontsize)
+
+    scatter_style={'s': 10, 'facecolors': 'k'}
+    ctof = tso(**kwargs)
+    data = hdata.value
+    times = hdata.times.value
+    ctof.fit(data, times)
+    plot_ts_outliers(ctof, (tax, bax), scatter_style=scatter_style)
+    plot_2d_phase_space(
+        ctof.get_embedded_data(), pax, outlier_ids=ctof.get_outlier_indices(),
+        scatter_style=scatter_style
+    )
