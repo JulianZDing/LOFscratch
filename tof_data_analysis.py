@@ -24,11 +24,20 @@ def _generate_windows(start, stop, level, offset):
     return np.stack((left, right), axis=-1)
 
 
+def _setup_main_plot(width, levels, height=6, level_height=1):
+    total_height = height + levels*level_height
+    fig = plt.figure(figsize=(width,total_height))
+    gs = fig.add_gridspec(total_height, 1)
+    qax = fig.add_subplot(gs[:height])
+    axs = [fig.add_subplot(gs[height+i], sharex=qax) for i in range(levels)]
+    return fig, qax, axs
+
+
 def tof_detections_in_open_data(
     det, start, stop,
     padding=2, levels=[4, 30, 120], base_level=None, offset=1,
-    plot=True, plot_windows=False, save_dir=None, colors=['red', 'blue', 'black'],
-    **kwargs
+    plot_summary=True, plot_all_windows=False, plot_detection_windows=True,
+    save_dir=None, colors=['red', 'blue', 'black'], q_kwargs={}, **kwargs
 ):
     '''
     Plot and return detections made by TOF within a time frame in open data from a GW detector
@@ -45,23 +54,26 @@ def tof_detections_in_open_data(
 
     Remaining parameters are passed to TemporalOutlierFactor constructor
     '''
+    if save_dir and not os.path.isdir(save_dir):
+        os.mkdir(save_dir)
+
     rdata = TimeSeries.fetch_open_data(det, start-padding, stop+padding, cache=False)
 
     if base_level is None:
         base_level = levels[0]
 
-    if plot:
+    if plot_summary:
         width = round((stop - start) / base_level)
         scaled_width = _scale_width_asymptotic(4, width, 100)
         scaled_base_level = base_level * width / scaled_width
-        fig, ax = plt.subplots(1, 1, figsize=(scaled_width, 6))
-        ax.set_title(f'TOF detections on {det} between {tconvert(start)} and {tconvert(stop)}')
+        fig, qax, axs = _setup_main_plot(scaled_width, len(levels))
+        qax.set_title(f'TOF detections on {det} between {tconvert(start)} and {tconvert(stop)}')
         base_windows = _generate_windows(start, stop, scaled_base_level, 1)
-        plot_high_resolution_qscan(ax, rdata, tqdm(base_windows, desc='Main plot'), vmin=0, vmax=15)
-        ax.set_xlim(start, stop)
-        ax.set_xlabel('GPS Time (s)')
-        ax.set_ylabel('Frequency (Hz)')
-        ax.set_ylim(-5*len(levels), 300)
+        plot_high_resolution_qscan(
+            qax, rdata, tqdm(base_windows, desc='Main plot'), q_kwargs=q_kwargs, vmin=0, vmax=25)
+        qax.set_xlim(start, stop)
+        qax.set_xlabel('GPS Time (s)')
+        qax.set_ylabel('Frequency (Hz)')
     
     level_windows = {level: _generate_windows(start, stop, level, offset) for level in levels}
     
@@ -80,7 +92,7 @@ def tof_detections_in_open_data(
             outliers = times[ctof.get_outlier_indices()]
             outlier_times[level] = np.append(outlier_times[level], outliers)
 
-            if plot_windows:
+            if plot_all_windows or (outliers.size > 0 and plot_detection_windows):
                 fig1 = plt.figure(figsize=(9, 9), constrained_layout=True)
                 gs = fig1.add_gridspec(4, 1)
                 bax = fig1.add_subplot(gs[3])
@@ -92,20 +104,27 @@ def tof_detections_in_open_data(
                 oax = fig1.add_subplot(gs[0:2], sharex=bax)
                 oax.set_ylabel('Frequency (Hz)')
                 oax.set_title(f'TOF detections on {det} between {tconvert(left)} and {tconvert(right)}')
-                plot_qscan(oax, rdata, q_kwargs={'outseg': (left, right)}, vmin=0, vmax=15)
-                oax.set_ylim(-5, 300)
-                if save_dir is not None:
+                plot_qscan(oax, rdata, q_kwargs={'outseg': (left, right), **q_kwargs}, vmin=0, vmax=25)
+                oax.set_yscale('symlog', base=2, linthresh=2**6)
+                qax.set_ylim(bottom=16)
+                if save_dir:
                     fig1.savefig(os.path.join(save_dir, f'{det}_{left}_{right}.png'), bbox_inches='tight')
                 plt.close(fig1)
     
-    if plot:    
+    if plot_summary:
+        xticks = np.arange(start, stop, scaled_base_level)
         for i, (level, outliers) in enumerate(outlier_times.items()):
+            ax = axs[i]
             c = colors[i % len(colors)]
-            plot_detections(ax, outliers, ypos=-5*i, label=f'{level}s window size', color=c)
+            plot_detections(ax, outliers, ypos=-5*i, color=c)
+            ax.text(0.0, 0.1, f'{level}s window size', transform=ax.transAxes)
+            ax.set_xticks(xticks)
+            ax.grid(False)
 
-        ax.set_xticks(np.arange(start, stop, scaled_base_level))
-        ax.legend()
-        ax.grid(False)
+        qax.set_xticks(xticks)
+        qax.set_yscale('symlog', base=2, linthresh=2**6)
+        qax.set_ylim(bottom=16)
+        qax.grid(False)
         plt.tight_layout()
         if save_dir:
             fig.savefig(os.path.join(save_dir, f'multi_window_{det}_{left}_{right}.jpg'), bbox_inches='tight')

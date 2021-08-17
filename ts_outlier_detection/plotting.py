@@ -175,7 +175,7 @@ def plot_nearest_neighbors(
 
 
 def plot_qscan(ax, ts, q_kwargs={}, **kwargs):
-    image = ax.pcolormesh(ts.q_transform(**q_kwargs), **kwargs)
+    image = ax.imshow(ts.q_transform(**q_kwargs), **kwargs)
     cbar = ax.colorbar()
     cbar.set_label('Normalized energy')
     return image
